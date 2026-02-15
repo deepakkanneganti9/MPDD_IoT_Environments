@@ -34,16 +34,23 @@ We provide a Python utility script `move_files.py` that makes it easy to move fi
 
 ```bash
 python move_files.py "source/path/file.ext" "destination/path/file.ext"
+
+# For automation (skip confirmation prompts)
+python move_files.py "source/path/file.ext" "destination/path/file.ext" --force
 ```
 
 The script will:
 - Create the destination directory if it doesn't exist
 - Move the file using Git to preserve history
 - Show you the status of the operation
+- Prompt for confirmation if destination file exists (unless --force is used)
 
 **Example:**
 ```bash
 python move_files.py "Experiment 1/notebook.ipynb" "Experiment 2/notebook.ipynb"
+
+# Non-interactive mode for scripts
+python move_files.py "old/data.csv" "new/data.csv" --force
 ```
 
 ### Method 3: Manual Move with Git Add

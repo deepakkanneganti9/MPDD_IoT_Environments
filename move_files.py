@@ -6,10 +6,11 @@ This script ensures that file history is preserved by using 'git mv' command.
 It also creates destination directories if they don't exist.
 
 Usage:
-    python move_files.py <source_path> <destination_path>
+    python move_files.py <source_path> <destination_path> [--force]
 
 Example:
     python move_files.py "Experiment 1/data.csv" "Experiment 2/data.csv"
+    python move_files.py "Experiment 1/data.csv" "Experiment 2/data.csv" --force
 """
 
 import os
@@ -18,13 +19,14 @@ import subprocess
 from pathlib import Path
 
 
-def move_file(source, destination):
+def move_file(source, destination, force=False):
     """
     Move a file from source to destination using git mv.
     
     Args:
         source (str): Source file path
         destination (str): Destination file path
+        force (bool): If True, skip confirmation prompts
     
     Returns:
         bool: True if successful, False otherwise
@@ -51,10 +53,13 @@ def move_file(source, destination):
     
     # Check if destination file already exists
     if dest_path.exists():
-        response = input(f"⚠️  Destination file '{destination}' already exists. Overwrite? (y/n): ")
-        if response.lower() != 'y':
-            print("❌ Operation cancelled.")
-            return False
+        if force or not sys.stdin.isatty():
+            print(f"⚠️  Destination file '{destination}' already exists. Overwriting (force mode)...")
+        else:
+            response = input(f"⚠️  Destination file '{destination}' already exists. Overwrite? (y/n): ")
+            if response.lower() != 'y':
+                print("❌ Operation cancelled.")
+                return False
     
     try:
         # Use git mv to preserve history
@@ -69,13 +74,20 @@ def move_file(source, destination):
         print("✅ File moved successfully!")
         print(f"   From: {source}")
         print(f"   To:   {destination}")
+        
+        # Display any git output if present
+        if result.stdout:
+            print(f"\nGit output:\n{result.stdout}")
+        
         print("\n💡 Don't forget to commit the change:")
         print(f"   git commit -m \"Move {source_path.name} to {dest_dir}\"")
         
         return True
         
     except subprocess.CalledProcessError as e:
-        print(f"❌ Error moving file: {e.stderr}")
+        print(f"❌ Error moving file:")
+        if e.stderr:
+            print(f"   {e.stderr}")
         return False
     except Exception as e:
         print(f"❌ Unexpected error: {e}")
@@ -84,20 +96,24 @@ def move_file(source, destination):
 
 def main():
     """Main function to handle command line arguments."""
-    if len(sys.argv) != 3:
-        print("Usage: python move_files.py <source_path> <destination_path>")
+    if len(sys.argv) < 3:
+        print("Usage: python move_files.py <source_path> <destination_path> [--force]")
+        print("\nOptions:")
+        print("  --force    Skip confirmation prompts (useful for automation)")
         print("\nExample:")
         print('  python move_files.py "Experiment 1/data.csv" "Experiment 2/data.csv"')
+        print('  python move_files.py "old/file.txt" "new/file.txt" --force')
         sys.exit(1)
     
     source = sys.argv[1]
     destination = sys.argv[2]
+    force = '--force' in sys.argv or '-f' in sys.argv
     
     print("=" * 60)
     print("File Movement Utility")
     print("=" * 60)
     
-    success = move_file(source, destination)
+    success = move_file(source, destination, force)
     
     if success:
         sys.exit(0)
