@@ -10,7 +10,7 @@ import argparse
 import sys
 
 
-def move_file(source_path, destination_path, create_dirs=False):
+def move_file(source_path, destination_path, create_dirs=False, force=False):
     """
     Move a file from source path to destination path.
     
@@ -18,6 +18,7 @@ def move_file(source_path, destination_path, create_dirs=False):
         source_path (str): Path to the source file
         destination_path (str): Path to the destination (file or directory)
         create_dirs (bool): Whether to create destination directories if they don't exist
+        force (bool): Force overwrite without confirmation
         
     Returns:
         bool: True if successful, False otherwise
@@ -51,10 +52,12 @@ def move_file(source_path, destination_path, create_dirs=False):
         
         # Check if destination file already exists (only check files, not directories)
         if os.path.exists(destination_path) and os.path.isfile(destination_path):
-            response = input(f"File '{destination_path}' already exists. Overwrite? (y/n): ")
-            if response.lower() != 'y':
-                print("Operation cancelled.")
-                return False
+            if not force:
+                response = input(f"File '{destination_path}' already exists. Overwrite? (y/n): ")
+                if response.lower() != 'y':
+                    print("Operation cancelled.")
+                    return False
+            # If force is True, the file will be overwritten automatically by shutil.move
         
         # Move the file
         shutil.move(source_path, destination_path)
@@ -108,19 +111,31 @@ Examples:
     
     args = parser.parse_args()
     
-    # Handle force flag by temporarily modifying move_file behavior
-    if args.force and os.path.exists(args.destination):
+    # Check if source file exists before doing anything
+    if not os.path.exists(args.source):
+        print(f"Error: Source file '{args.source}' does not exist.")
+        sys.exit(1)
+    
+    # Handle force flag - remove destination file if it exists
+    if args.force:
         if os.path.isdir(args.destination):
             dest_file = os.path.join(args.destination, os.path.basename(args.source))
         else:
             dest_file = args.destination
         
-        if os.path.exists(dest_file):
-            os.remove(dest_file)
-            print(f"Removed existing file: {dest_file}")
+        if os.path.exists(dest_file) and os.path.isfile(dest_file):
+            try:
+                os.remove(dest_file)
+                print(f"Removed existing file: {dest_file}")
+            except FileNotFoundError:
+                # File was already removed by another process, that's okay
+                pass
+            except Exception as e:
+                print(f"Error removing existing file: {e}")
+                sys.exit(1)
     
     # Execute the move operation
-    success = move_file(args.source, args.destination, args.create_dirs)
+    success = move_file(args.source, args.destination, args.create_dirs, args.force)
     
     # Exit with appropriate status code
     sys.exit(0 if success else 1)
